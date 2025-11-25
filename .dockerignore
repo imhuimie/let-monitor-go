@@ -1,0 +1,40 @@
+# Git files
+.git
+.gitignore
+.github
+
+# Documentation
+*.md
+LICENSE
+
+# Development files
+.env
+.env.*
+!.env.example
+
+# Data directories
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+testdata/
+
+# Temporary files
+tmp/
+temp/

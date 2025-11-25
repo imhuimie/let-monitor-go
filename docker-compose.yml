@@ -3,27 +3,36 @@ version: '3.8'
 services:
   app:
     build: .
+    container_name: let-monitor-go
     ports:
       - "5556:5556"
     volumes:
       - ./data:/app/data
     environment:
       # 数据库类型: mongodb 或 sqlite
-      - DB_TYPE=mongodb
+      - DB_TYPE=${DB_TYPE:-sqlite}
       # MongoDB配置 (当DB_TYPE=mongodb时使用)
-      - MONGO_HOST=mongodb://mongo:27017/
+      - MONGO_HOST=${MONGO_HOST:-mongodb://mongo:27017/}
       # SQLite配置 (当DB_TYPE=sqlite时使用)
-      # - SQLITE_PATH=data/forum_monitor.db
+      - SQLITE_PATH=${SQLITE_PATH:-data/forum_monitor.db}
+      # Web Server配置
       - ACCESS_TOKEN=${ACCESS_TOKEN:-your_access_token_here}
-      - GIN_MODE=release
-      - LOG_LEVEL=info
-    depends_on:
-      - mongo
+      - PORT=${PORT:-5556}
+      - GIN_MODE=${GIN_MODE:-release}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     restart: unless-stopped
+    # 注意: 如果使用MongoDB，取消下面depends_on的注释
+    # depends_on:
+    #   - mongo
 
-  mongo:
-    image: mongo:7
-    volumes:
-      - ./data/db:/data/db
-    restart: unless-stopped
-    # 注意: 如果使用SQLite (DB_TYPE=sqlite)，可以注释掉整个mongo服务并移除app的depends_on配置
+  # MongoDB服务 (可选 - 仅在DB_TYPE=mongodb时需要)
+  # 使用MongoDB时，取消下面注释并在app服务中启用depends_on
+  # mongo:
+  #   image: mongo:7
+  #   container_name: let-monitor-mongo
+  #   volumes:
+  #     - ./data/db:/data/db
+  #   restart: unless-stopped
+  #   # 可选: 添加端口映射以便外部访问
+  #   # ports:
+  #   #   - "27017:27017"

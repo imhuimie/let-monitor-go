@@ -31,7 +31,7 @@ git clone https://github.com/imhuimie/let-monitor-go.git
 cd let-monitor-go
 
 # 2. 配置环境变量
-cp .env.example .env
+cp .env.example data/.env
 # 编辑 .env 文件，设置 ACCESS_TOKEN
 
 # 3. 启动服务
@@ -55,7 +55,7 @@ docker run -d -p 27017:27017 -v $(pwd)/data/db:/data/db mongo:7
 # 只需确保 .env 中设置 DB_TYPE=sqlite
 
 # 3. 配置环境变量
-cp .env.example .env
+cp .env.example data/.env
 cp config.example.json data/config.json
 
 # 4. 运行应用
