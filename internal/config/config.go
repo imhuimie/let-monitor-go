@@ -32,10 +32,20 @@ type Config struct {
 	KeywordsRule      string `json:"keywords_rule"`
 
 	// AI filter
-	UseAIFilter   bool   `json:"use_ai_filter"`
-	CFAccountID   string `json:"cf_account_id"`
-	CFToken       string `json:"cf_token"`
-	Model         string `json:"model"`
+	UseAIFilter bool   `json:"use_ai_filter"`
+	AIProvider  string `json:"ai_provider"` // "cloudflare" or "openai"
+
+	// Cloudflare AI settings
+	CFAccountID string `json:"cf_account_id"`
+	CFToken     string `json:"cf_token"`
+	Model       string `json:"model"`
+
+	// OpenAI compatible API settings
+	OpenAIAPIURL string `json:"openai_api_url"`
+	OpenAIAPIKey string `json:"openai_api_key"`
+	OpenAIModel  string `json:"openai_model"`
+
+	// AI prompts (shared by both providers)
 	ThreadPrompt  string `json:"thread_prompt"`
 	CommentPrompt string `json:"comment_prompt"`
 
@@ -108,6 +118,9 @@ func (m *Manager) Load() error {
 	}
 	if m.config.NoticeType == "" {
 		m.config.NoticeType = "telegram"
+	}
+	if m.config.AIProvider == "" {
+		m.config.AIProvider = "cloudflare"
 	}
 
 	log.Info("配置文件加载成功")
@@ -186,11 +199,28 @@ func (cfg *Config) Validate() error {
 
 	// Validate AI settings if enabled
 	if cfg.UseAIFilter {
-		if cfg.CFAccountID == "" || cfg.CFToken == "" {
-			return fmt.Errorf("AI 过滤配置不完整: 需要 cf_account_id 和 cf_token")
+		if cfg.AIProvider != "cloudflare" && cfg.AIProvider != "openai" {
+			return fmt.Errorf("ai_provider 必须是 'cloudflare' 或 'openai'")
 		}
-		if cfg.Model == "" {
-			return fmt.Errorf("AI 过滤配置不完整: 需要 model")
+
+		switch cfg.AIProvider {
+		case "cloudflare":
+			if cfg.CFAccountID == "" || cfg.CFToken == "" {
+				return fmt.Errorf("Cloudflare AI 配置不完整: 需要 cf_account_id 和 cf_token")
+			}
+			if cfg.Model == "" {
+				return fmt.Errorf("Cloudflare AI 配置不完整: 需要 model")
+			}
+		case "openai":
+			if cfg.OpenAIAPIURL == "" {
+				return fmt.Errorf("OpenAI 配置不完整: 需要 openai_api_url")
+			}
+			if cfg.OpenAIAPIKey == "" {
+				return fmt.Errorf("OpenAI 配置不完整: 需要 openai_api_key")
+			}
+			if cfg.OpenAIModel == "" {
+				return fmt.Errorf("OpenAI 配置不完整: 需要 openai_model")
+			}
 		}
 	}
 

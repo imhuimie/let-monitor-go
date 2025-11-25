@@ -33,7 +33,7 @@ type ForumMonitor struct {
 
 	// Filters
 	keywordFilter *filter.KeywordFilter
-	aiFilter      *filter.AIFilter
+	aiFilter      filter.AIFilterInterface
 
 	// Control
 	ctx    context.Context
@@ -61,9 +61,14 @@ func NewForumMonitor(cfgMgr *config.Manager, db database.Database) (*ForumMonito
 		keywordFilter = filter.NewKeywordFilter(cfg.KeywordsRule)
 	}
 
-	var aiFilter *filter.AIFilter
+	var aiFilter filter.AIFilterInterface
 	if cfg.UseAIFilter {
-		aiFilter = filter.NewAIFilter(cfg.CFAccountID, cfg.CFToken, cfg.Model)
+		var err error
+		aiFilter, err = filter.NewAIFilterFromConfig(cfg)
+		if err != nil {
+			log.Warnf("创建 AI 过滤器失败: %v，AI 过滤将被禁用", err)
+			aiFilter = nil
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -123,7 +128,13 @@ func (m *ForumMonitor) Reload() error {
 	}
 
 	if cfg.UseAIFilter {
-		m.aiFilter = filter.NewAIFilter(cfg.CFAccountID, cfg.CFToken, cfg.Model)
+		aiFilter, err := filter.NewAIFilterFromConfig(cfg)
+		if err != nil {
+			log.Warnf("创建 AI 过滤器失败: %v，AI 过滤将被禁用", err)
+			m.aiFilter = nil
+		} else {
+			m.aiFilter = aiFilter
+		}
 	} else {
 		m.aiFilter = nil
 	}
