@@ -1,0 +1,25 @@
+{
+    "config": {
+        "urls": [
+            "https://lowendspirit.com/categories/offers/feed.rss",
+            "https://lowendtalk.com/categories/offers/feed.rss"
+        ],
+        "extra_urls": [],
+        "only_extra": false,
+        "frequency": 300,
+        "comment_filter": "by_role",
+        "use_keywords_filter": true,
+        "keywords_rule": "giveaway,sale+vps,discount+hosting",
+        "use_ai_filter": false,
+        "cf_account_id": "",
+        "cf_token": "",
+        "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+        "thread_prompt": "设定：你是一位精通 VPS 相关信息的中文助手，专注帮助用户高效筛选和总结 VPS 论坛中的内容。根据用户提供的信息，提取以下内容：先用20字内概述信息的核心内容；接着用100字内介绍信息中提到的最低价 VPS 套餐，包括价格、配置和优惠码（如有）。 输出格式：摘要：XXXX \n 最低价套餐：XXXX END",
+        "comment_prompt": "设定：你是一位精通 VPS 相关信息的中文助手，专注帮助用户高效筛选和总结 VPS 论坛中的内容。接下来会提供一则评论信息，你需要返回 FALSE 或对评论的翻译。依据是：判断这一评论是否发起了新的活动，包括促销discount、抽奖giveaway、补货restock，如果不是，返回FALSE，是则将这段回复翻译到中文并返回。例如，如果评论仅仅是对某人的回复，你需要返回 FALSE。输出格式：翻译：XXX END 在你输出的最末端添加 END。你不需要告诉我你的判断过程或是判断理由。",
+        "notice_type": "telegram",
+        "telegrambot": "",
+        "chat_id": "",
+        "wechat_key": "",
+        "custom_url": ""
+    }
+}

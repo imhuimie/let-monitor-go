@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LET Monitor Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        /* 通用样式 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: #f4f7fa;
+        }
+        #app {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        @media (min-width: 768px) {
+            #app {
+                width: 50%;
+            }
+        }
+        @media (max-width: 768px) {
+            #app {
+                width: 100%;
+                padding: 10px;
+            }
+        }
+        h2 {
+            margin-bottom: 20px;
+        }
+        .header-links {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        .header-links a {
+            color: #6c757d;
+            font-size: 20px;
+            transition: color 0.3s ease;
+        }
+        .header-links a:hover {
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header-links">
+            <a href="https://github.com/vpslog/let-monitor" target="_blank">
+                <i class="fab fa-github">&nbsp; Github</i>
+            </a>
+            <a href="https://vpslog.org/projects/let-monitor/" target="_blank">
+                <i class="fas fa-book">&nbsp; 教程</i>
+            </a>
+            <a href="https://t.me/vpalogchat" target="_blank">
+                <i class="fab fa-telegram-plane">&nbsp; 交流群</i>
+            </a>
+        </div>
+        <h1>LowEndTalk 监控</h1>
+
+        <!-- Access Token 输入界面 -->
+        <div v-if="!isAuthenticated">
+            <h2>请输入 Access Token</h2>
+            <el-form label-position="top" label-width="120px">
+                <el-form-item label="Access Token">
+                    <el-input v-model="accessToken" placeholder="Access Token for API" @keyup.enter="authenticate"></el-input>
+                </el-form-item>
+                <el-button type="primary" @click="authenticate">验证</el-button>
+            </el-form>
+        </div>
+
+        <!-- 完整配置界面 -->
+        <div v-else>
+            <h2>基础配置</h2>
+            <el-form label-position="top" label-width="120px">
+                <el-form-item label="RSS URLs (每行一个)">
+                    <el-input v-model="config.urls_text" type="textarea" placeholder="RSS URLs"></el-input>
+                </el-form-item>
+
+                <el-form-item label="Extra URLs (每行一个)">
+                    <el-input v-model="config.extra_urls_text" type="textarea" placeholder="Extra URLs"></el-input>
+                </el-form-item>
+
+                <el-form-item label="仅处理 Extra URLs">
+                    <el-checkbox v-model="config.only_extra"></el-checkbox>
+                </el-form-item>
+
+                <el-form-item label="监控间隔 (秒)">
+                    <el-input v-model="config.frequency" type="number" placeholder="Frequency (seconds)"></el-input>
+                </el-form-item>
+
+                <el-form-item label="选择通知方式">
+                    <el-select v-model="config.notice_type" placeholder="选择通知方式">
+                        <el-option label="Telegram" value="telegram"></el-option>
+                        <el-option label="微信 (息知)" value="wechat"></el-option>
+                        <el-option label="自定义" value="custom"></el-option>
+                    </el-select>
+                </el-form-item>
+
+                <template v-if="config.notice_type === 'telegram'">
+                    <el-form-item label="Telegram Bot Token">
+                        <el-input v-model="config.telegrambot" placeholder="Telegram Bot Token"></el-input>
+                    </el-form-item>
+                    <el-form-item label="Telegram Chat ID">
+                        <el-input v-model="config.chat_id" placeholder="Telegram Chat ID"></el-input>
+                    </el-form-item>
+                </template>
+
+                <template v-if="config.notice_type === 'wechat'">
+                    <el-form-item label="息知 KEY">
+                        <el-input v-model="config.wechat_key" placeholder="XIZHI KEY"></el-input>
+                    </el-form-item>
+                </template>
+
+                <template v-if="config.notice_type === 'custom'">
+                    <el-form-item label="自定义 URL">
+                        <el-input v-model="config.custom_url" placeholder="Custom Notification URL"></el-input>
+                    </el-form-item>
+                </template>
+
+                <h2>过滤器配置</h2>
+                <el-form-item label="评论过滤模式">
+                    <el-select v-model="config.comment_filter" placeholder="选择评论过滤模式">
+                        <el-option label="按角色过滤" value="by_role"></el-option>
+                        <el-option label="仅作者评论" value="by_author"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="启用关键词过滤">
+                    <el-checkbox v-model="config.use_keywords_filter"></el-checkbox>
+                </el-form-item>
+                <template v-if="config.use_keywords_filter">
+                    <el-form-item label="关键词规则 (用逗号分隔OR组，+分隔AND)">
+                        <el-input v-model="config.keywords_rule" placeholder="e.g., discount+code, giveaway"></el-input>
+                    </el-form-item>
+                </template>
+                <el-form-item label="启用AI过滤">
+                    <el-checkbox v-model="config.use_ai_filter"></el-checkbox>
+                </el-form-item>
+
+                <template v-if="config.use_ai_filter">
+                    <el-form-item label="Cloudflare Account ID">
+                        <el-input v-model="config.cf_account_id" placeholder="Cloudflare Account ID"></el-input>
+                    </el-form-item>
+                    <el-form-item label="Cloudflare Token">
+                        <el-input v-model="config.cf_token" placeholder="Cloudflare Token"></el-input>
+                    </el-form-item>
+                    <el-form-item label="模型">
+                        <el-input v-model="config.model" placeholder="Model"></el-input>
+                    </el-form-item>
+                    <el-form-item label="Thread Prompt">
+                        <el-input v-model="config.thread_prompt" type="textarea" placeholder="Thread Prompt"></el-input>
+                    </el-form-item>
+                    <el-form-item label="Comment Prompt">
+                        <el-input v-model="config.comment_prompt" type="textarea" placeholder="Comment Prompt"></el-input>
+                    </el-form-item>
+                </template>
+
+                <el-button type="primary" @click="updateConfig">保存配置</el-button>
+                <el-button @click="logout" style="margin-left: 10px;">退出</el-button>
+            </el-form>
+
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3.2.47/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    isAuthenticated: false,
+                    accessToken: localStorage.getItem('accessToken') || '',
+                    config: {
+                        frequency: 300,
+                        telegrambot: '',
+                        chat_id: '',
+                        notice_type: 'telegram',
+                        wechat_key: '',
+                        custom_url: '',
+                        cf_account_id: '',
+                        cf_token: '',
+                        model: '',
+                        thread_prompt: '',
+                        comment_prompt: '',
+                        use_keywords_filter: false,
+                        keywords_rule: '',
+                        use_ai_filter: false,
+                        comment_filter: 'by_role',
+                        urls: [],
+                        urls_text: '',
+                        extra_urls: [],
+                        extra_urls_text: '',
+                        only_extra: false,
+                        access_token: ''
+                    }
+                };
+            },
+            methods: {
+                authenticate() {
+                    if (!this.accessToken.trim()) {
+                        alert('Please enter Access Token');
+                        return;
+                    }
+                    axios.get('/api/config', {
+                        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+                    }).then(response => {
+                        this.config = response.data;
+                        this.config.urls_text = this.config.urls ? this.config.urls.join('\n') : '';
+                        this.config.extra_urls_text = this.config.extra_urls ? this.config.extra_urls.join('\n') : '';
+                        this.isAuthenticated = true;
+                        localStorage.setItem('accessToken', this.accessToken);
+                    }).catch(error => {
+                        if (error.response && error.response.status === 401) {
+                            alert('Access Token 无效，请重新输入');
+                        } else {
+                            alert('网络错误，请重试');
+                        }
+                    });
+                },
+                fetchConfig() {
+                    if (!this.accessToken) return;
+                    axios.get('/api/config', {
+                        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+                    }).then(response => {
+                        this.config = response.data;
+                        this.config.urls_text = this.config.urls ? this.config.urls.join('\n') : '';
+                        this.config.extra_urls_text = this.config.extra_urls ? this.config.extra_urls.join('\n') : '';
+                        this.isAuthenticated = true;
+                    }).catch(error => {
+                        if (error.response && error.response.status === 401) {
+                            this.isAuthenticated = false;
+                            localStorage.removeItem('accessToken');
+                        }
+                    });
+                },
+                updateConfig() {
+                    const configToSend = { ...this.config };
+                    configToSend.urls = this.config.urls_text.split('\n').map(url => url.trim()).filter(url => url);
+                    configToSend.extra_urls = this.config.extra_urls_text.split('\n').map(url => url.trim()).filter(url => url);
+                    axios.post('/api/config', { config: configToSend }, {
+                        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+                    }).then(response => {
+                        alert(response.data.message);
+                        this.fetchConfig();
+                    }).catch(error => {
+                        if (error.response && error.response.status === 401) {
+                            alert('Access Token 无效，请重新登录');
+                            this.logout();
+                        }
+                    });
+                },
+                logout() {
+                    this.isAuthenticated = false;
+                    this.accessToken = '';
+                    localStorage.removeItem('accessToken');
+                    this.config = {
+                        frequency: 300,
+                        telegrambot: '',
+                        chat_id: '',
+                        notice_type: 'telegram',
+                        wechat_key: '',
+                        custom_url: '',
+                        cf_account_id: '',
+                        cf_token: '',
+                        model: '',
+                        thread_prompt: '',
+                        comment_prompt: '',
+                        use_keywords_filter: false,
+                        keywords_rule: '',
+                        use_ai_filter: false,
+                        comment_filter: 'by_role',
+                        urls: [],
+                        urls_text: '',
+                        extra_urls: [],
+                        extra_urls_text: '',
+                        only_extra: false,
+                        access_token: ''
+                    };
+                },
+            },
+            mounted() {
+                if (this.accessToken) {
+                    this.authenticate();
+                }
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

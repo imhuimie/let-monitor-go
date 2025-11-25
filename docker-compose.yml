@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "5556:5556"
+    volumes:
+      - ./data:/app/data
+    environment:
+      # 数据库类型: mongodb 或 sqlite
+      - DB_TYPE=mongodb
+      # MongoDB配置 (当DB_TYPE=mongodb时使用)
+      - MONGO_HOST=mongodb://mongo:27017/
+      # SQLite配置 (当DB_TYPE=sqlite时使用)
+      # - SQLITE_PATH=data/forum_monitor.db
+      - ACCESS_TOKEN=${ACCESS_TOKEN:-your_access_token_here}
+      - GIN_MODE=release
+      - LOG_LEVEL=info
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - ./data/db:/data/db
+    restart: unless-stopped
+    # 注意: 如果使用SQLite (DB_TYPE=sqlite)，可以注释掉整个mongo服务并移除app的depends_on配置
