@@ -20,7 +20,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/imhuimie/let-monitor-go/internal/config"
+	"github.com/imhuimie/let-monitor-go/internal/filter"
 	"github.com/imhuimie/let-monitor-go/internal/monitor"
+	"github.com/imhuimie/let-monitor-go/internal/notifier"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -79,6 +81,8 @@ func (s *Server) setupRoutes() {
 		// Config endpoints (auth required)
 		api.GET("/config", s.authMiddleware(), s.handleGetConfig)
 		api.POST("/config", s.authMiddleware(), s.handleUpdateConfig)
+		api.POST("/test-openai", s.authMiddleware(), s.handleTestOpenAI)
+		api.POST("/test-telegram", s.authMiddleware(), s.handleTestTelegram)
 	}
 }
 
@@ -143,9 +147,10 @@ func (s *Server) handleUpdateConfig(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		log.Warnf("解析请求JSON失败: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  "error",
-			"message": "无效的请求数据",
+			"message": fmt.Sprintf("无效的请求数据: %v", err),
 		})
 		return
 	}
@@ -160,6 +165,7 @@ func (s *Server) handleUpdateConfig(c *gin.Context) {
 
 	// Validate configuration
 	if err := requestBody.Config.Validate(); err != nil {
+		log.Warnf("配置验证失败: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  "error",
 			"message": fmt.Sprintf("配置验证失败: %v", err),
@@ -188,6 +194,81 @@ func (s *Server) handleUpdateConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "success",
 		"message": "Config updated",
+	})
+}
+
+// handleTestOpenAI tests OpenAI API configuration
+func (s *Server) handleTestOpenAI(c *gin.Context) {
+	var testReq struct {
+		APIUrl string `json:"api_url"`
+		APIKey string `json:"api_key"`
+		Model  string `json:"model"`
+	}
+
+	if err := c.ShouldBindJSON(&testReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "无效的请求数据",
+		})
+		return
+	}
+
+	// Create OpenAI filter with test parameters
+	openaiFilter := filter.NewOpenAIFilter(testReq.APIUrl, testReq.APIKey, testReq.Model)
+
+	// Test with a simple message
+	testContent := "Hello, this is a test message."
+	testPrompt := "Please respond with 'Test successful' if you receive this message."
+
+	result, err := openaiFilter.Filter(testContent, testPrompt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": fmt.Sprintf("API测试失败: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "API测试成功",
+		"result":  result,
+	})
+}
+
+// handleTestTelegram tests Telegram notification configuration
+func (s *Server) handleTestTelegram(c *gin.Context) {
+	var testReq struct {
+		BotToken string `json:"bot_token"`
+		ChatID   string `json:"chat_id"`
+	}
+
+	if err := c.ShouldBindJSON(&testReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "无效的请求数据",
+		})
+		return
+	}
+
+	// Create Telegram notifier with test parameters
+	telegramNotifier := notifier.NewTelegramNotifier(testReq.BotToken, testReq.ChatID)
+
+	// Test with a simple message
+	testMessage := "🔔 这是来自 Let-Monitor-Go 的测试消息\n\n如果您收到此消息，说明 Telegram 配置正确！"
+
+	err := telegramNotifier.Send(testMessage)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "error",
+			"message": fmt.Sprintf("发送测试消息失败: %v", err),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "测试消息发送成功，请检查您的 Telegram",
 	})
 }
 

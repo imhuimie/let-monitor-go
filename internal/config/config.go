@@ -181,24 +181,25 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("notice_type 必须是 'telegram', 'wechat' 或 'custom'")
 	}
 
-	// Validate notification settings
+	// Validate notification settings only if fields are provided
 	switch cfg.NoticeType {
 	case "telegram":
-		if cfg.TelegramBot == "" || cfg.ChatID == "" {
-			return fmt.Errorf("Telegram 配置不完整: 需要 telegrambot 和 chat_id")
+		if (cfg.TelegramBot != "" || cfg.ChatID != "") && (cfg.TelegramBot == "" || cfg.ChatID == "") {
+			return fmt.Errorf("Telegram 配置不完整: 需要同时填写 telegrambot 和 chat_id")
 		}
 	case "wechat":
-		if cfg.WeChatKey == "" {
-			return fmt.Errorf("微信配置不完整: 需要 wechat_key")
-		}
+		// WeChat key is optional, no validation needed
 	case "custom":
-		if cfg.CustomURL == "" {
-			return fmt.Errorf("自定义通知配置不完整: 需要 custom_url")
-		}
+		// Custom URL is optional, no validation needed
 	}
 
 	// Validate AI settings if enabled
 	if cfg.UseAIFilter {
+		// Set default provider if not specified
+		if cfg.AIProvider == "" {
+			cfg.AIProvider = "cloudflare"
+		}
+
 		if cfg.AIProvider != "cloudflare" && cfg.AIProvider != "openai" {
 			return fmt.Errorf("ai_provider 必须是 'cloudflare' 或 'openai'")
 		}

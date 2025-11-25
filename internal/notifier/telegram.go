@@ -12,6 +12,7 @@ package notifier
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -55,8 +56,9 @@ func (t *TelegramNotifier) Send(message string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Warnf("Telegram API 返回非 200 状态码: %d", resp.StatusCode)
-		return fmt.Errorf("Telegram API 错误: 状态码 %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		log.Warnf("Telegram API 返回非 200 状态码: %d, 响应: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("Telegram API 错误 (状态码 %d): %s", resp.StatusCode, string(body))
 	}
 
 	log.Info("Telegram 消息发送成功")

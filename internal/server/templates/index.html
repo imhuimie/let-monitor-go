@@ -112,6 +112,9 @@
                     <el-form-item label="Telegram Chat ID">
                         <el-input v-model="config.chat_id" placeholder="Telegram Chat ID"></el-input>
                     </el-form-item>
+                    <el-form-item>
+                        <el-button type="success" @click="testTelegram" :loading="testingTelegram">测试 Telegram</el-button>
+                    </el-form-item>
                 </template>
 
                 <template v-if="config.notice_type === 'wechat'">
@@ -146,20 +149,45 @@
                 </el-form-item>
 
                 <template v-if="config.use_ai_filter">
-                    <el-form-item label="Cloudflare Account ID">
-                        <el-input v-model="config.cf_account_id" placeholder="Cloudflare Account ID"></el-input>
+                    <el-form-item label="AI 提供商">
+                        <el-select v-model="config.ai_provider" placeholder="选择 AI 提供商">
+                            <el-option label="Cloudflare Workers AI" value="cloudflare"></el-option>
+                            <el-option label="OpenAI 兼容 API" value="openai"></el-option>
+                        </el-select>
                     </el-form-item>
-                    <el-form-item label="Cloudflare Token">
-                        <el-input v-model="config.cf_token" placeholder="Cloudflare Token"></el-input>
-                    </el-form-item>
-                    <el-form-item label="模型">
-                        <el-input v-model="config.model" placeholder="Model"></el-input>
-                    </el-form-item>
+
+                    <template v-if="config.ai_provider === 'cloudflare'">
+                        <el-form-item label="Cloudflare Account ID">
+                            <el-input v-model="config.cf_account_id" placeholder="Cloudflare Account ID"></el-input>
+                        </el-form-item>
+                        <el-form-item label="Cloudflare Token">
+                            <el-input v-model="config.cf_token" placeholder="Cloudflare Token"></el-input>
+                        </el-form-item>
+                        <el-form-item label="模型">
+                            <el-input v-model="config.model" placeholder="例如: @cf/qwen/qwen3-30b-a3b-fp8"></el-input>
+                        </el-form-item>
+                    </template>
+
+                    <template v-if="config.ai_provider === 'openai'">
+                        <el-form-item label="API 地址">
+                            <el-input v-model="config.openai_api_url" placeholder="例如: https://api.openai.com/v1/chat/completions"></el-input>
+                        </el-form-item>
+                        <el-form-item label="API Key">
+                            <el-input v-model="config.openai_api_key" type="password" placeholder="OpenAI API Key" show-password></el-input>
+                        </el-form-item>
+                        <el-form-item label="模型">
+                            <el-input v-model="config.openai_model" placeholder="例如: gpt-4.1 或 gpt-3.5-turbo"></el-input>
+                        </el-form-item>
+                        <el-form-item>
+                            <el-button type="success" @click="testOpenAI" :loading="testingOpenAI">测试 OpenAI API</el-button>
+                        </el-form-item>
+                    </template>
+
                     <el-form-item label="Thread Prompt">
-                        <el-input v-model="config.thread_prompt" type="textarea" placeholder="Thread Prompt"></el-input>
+                        <el-input v-model="config.thread_prompt" type="textarea" :rows="3" placeholder="Thread Prompt"></el-input>
                     </el-form-item>
                     <el-form-item label="Comment Prompt">
-                        <el-input v-model="config.comment_prompt" type="textarea" placeholder="Comment Prompt"></el-input>
+                        <el-input v-model="config.comment_prompt" type="textarea" :rows="3" placeholder="Comment Prompt"></el-input>
                     </el-form-item>
                 </template>
 
@@ -188,9 +216,13 @@
                         notice_type: 'telegram',
                         wechat_key: '',
                         custom_url: '',
+                        ai_provider: 'cloudflare',
                         cf_account_id: '',
                         cf_token: '',
                         model: '',
+                        openai_api_url: '',
+                        openai_api_key: '',
+                        openai_model: '',
                         thread_prompt: '',
                         comment_prompt: '',
                         use_keywords_filter: false,
@@ -203,7 +235,9 @@
                         extra_urls_text: '',
                         only_extra: false,
                         access_token: ''
-                    }
+                    },
+                    testingOpenAI: false,
+                    testingTelegram: false
                 };
             },
             methods: {
@@ -248,6 +282,8 @@
                     const configToSend = { ...this.config };
                     configToSend.urls = this.config.urls_text.split('\n').map(url => url.trim()).filter(url => url);
                     configToSend.extra_urls = this.config.extra_urls_text.split('\n').map(url => url.trim()).filter(url => url);
+                    // 确保 frequency 是数字类型
+                    configToSend.frequency = parseInt(configToSend.frequency) || 300;
                     axios.post('/api/config', { config: configToSend }, {
                         headers: { 'Authorization': `Bearer ${this.accessToken}` }
                     }).then(response => {
@@ -258,6 +294,47 @@
                             alert('Access Token 无效，请重新登录');
                             this.logout();
                         }
+                    });
+                },
+                testOpenAI() {
+                    if (!this.config.openai_api_url || !this.config.openai_api_key || !this.config.openai_model) {
+                        alert('请先填写完整的 OpenAI API 配置');
+                        return;
+                    }
+                    this.testingOpenAI = true;
+                    axios.post('/api/test-openai', {
+                        api_url: this.config.openai_api_url,
+                        api_key: this.config.openai_api_key,
+                        model: this.config.openai_model
+                    }, {
+                        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+                    }).then(response => {
+                        alert(`测试成功！\n响应: ${response.data.result}`);
+                    }).catch(error => {
+                        const msg = error.response?.data?.message || '测试失败';
+                        alert(`测试失败: ${msg}`);
+                    }).finally(() => {
+                        this.testingOpenAI = false;
+                    });
+                },
+                testTelegram() {
+                    if (!this.config.telegrambot || !this.config.chat_id) {
+                        alert('请先填写完整的 Telegram 配置');
+                        return;
+                    }
+                    this.testingTelegram = true;
+                    axios.post('/api/test-telegram', {
+                        bot_token: this.config.telegrambot,
+                        chat_id: this.config.chat_id
+                    }, {
+                        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+                    }).then(response => {
+                        alert(response.data.message);
+                    }).catch(error => {
+                        const msg = error.response?.data?.message || '测试失败';
+                        alert(`测试失败: ${msg}`);
+                    }).finally(() => {
+                        this.testingTelegram = false;
                     });
                 },
                 logout() {
@@ -271,9 +348,13 @@
                         notice_type: 'telegram',
                         wechat_key: '',
                         custom_url: '',
+                        ai_provider: 'cloudflare',
                         cf_account_id: '',
                         cf_token: '',
                         model: '',
+                        openai_api_url: '',
+                        openai_api_key: '',
+                        openai_model: '',
                         thread_prompt: '',
                         comment_prompt: '',
                         use_keywords_filter: false,
